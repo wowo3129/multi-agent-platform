@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Multi-Agent 协作平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0f0f1a; --bg-card: #1a1a2e; --bg-input: #252542;
+            --accent: #667eea; --accent2: #764ba2; --text: #e0e0e0;
+            --text-dim: #888; --success: #10b981; --warning: #f59e0b;
+            --error: #ef4444; --border: #2d2d4a;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-dark); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: linear-gradient(135deg, var(--accent), var(--accent2)); padding: 20px 30px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .main { flex: 1; display: grid; grid-template-columns: 280px 1fr 300px; overflow: hidden; }
+        .sidebar { background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; }
+        .sidebar h2 { font-size: 0.9rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+        .agent-card { background: var(--bg-input); border-radius: 12px; padding: 15px; margin-bottom: 12px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; }
+        .agent-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+        .agent-card.active { border-color: var(--accent); background: linear-gradient(135deg, rgba(102,126,234,0.2), rgba(118,75,162,0.2)); }
+        .agent-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .agent-icon { font-size: 1.5rem; }
+        .agent-name { font-weight: 600; }
+        .agent-role { font-size: 0.75rem; color: var(--accent); background: rgba(102,126,234,0.2); padding: 2px 8px; border-radius: 10px; }
+        .agent-desc { font-size: 0.8rem; color: var(--text-dim); margin-top: 5px; }
+        .agent-status { display: flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 0.75rem; }
+        .agent-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); }
+        .agent-status .dot.idle { background: var(--success); }
+        .agent-status .dot.working { background: var(--warning); animation: pulse 1s infinite; }
+        .chat-area { display: flex; flex-direction: column; background: var(--bg-dark); }
+        .chat-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .chat-header h3 { font-size: 1rem; }
+        .clear-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .clear-btn:hover { border-color: var(--error); color: var(--error); }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { margin-bottom: 20px; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { text-align: right; }
+        .message-content { display: inline-block; max-width: 80%; padding: 12px 18px; border-radius: 15px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+        .message.user .message-content { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-bottom-right-radius: 5px; }
+        .message.agent .message-content { background: var(--bg-card); border-bottom-left-radius: 5px; text-align: left; }
+        .message-sender { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+        .message.user .message-sender { justify-content: flex-end; }
+        .chat-input-area { padding: 15px 20px; border-top: 1px solid var(--border); background: var(--bg-card); }
+        .input-wrapper { display: flex; gap: 10px; }
+        .chat-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 0.95rem; resize: none; min-height: 50px; max-height: 120px; font-family: inherit; }
+        .chat-input:focus { outline: none; border-color: var(--accent); }
+        .send-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: white; padding: 12px 24px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .send-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .right-panel { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-tabs { display: flex; border-bottom: 1px solid var(--border); }
+        .panel-tab { flex: 1; padding: 12px; text-align: center; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; border-bottom: 2px solid transparent; }
+        .panel-tab:hover { background: var(--bg-input); }
+        .panel-tab.active { border-color: var(--accent); color: var(--accent); }
+        .panel-content { flex: 1; overflow-y: auto; padding: 15px; }
+        .task-item { background: var(--bg-input); border-radius: 10px; padding: 12px; margin-bottom: 10px; border-left: 3px solid var(--border); }
+        .task-item.pending { border-color: var(--text-dim); }
+        .task-item.running { border-color: var(--warning); }
+        .task-item.completed { border-color: var(--success); }
+        .task-item.failed { border-color: var(--error); }
+        .task-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; }
+        .task-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); }
+        .task-status { padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); }
+        .task-status.pending { background: rgba(136,136,136,0.2); }
+        .task-status.running { background: rgba(245,158,11,0.2); color: var(--warning); }
+        .task-status.completed { background: rgba(16,185,129,0.2); color: var(--success); }
+        .task-status.failed { background: rgba(239,68,68,0.2); color: var(--error); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: var(--bg-input); border-radius: 10px; padding: 12px; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
+        .create-task { background: var(--bg-input); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .create-task h4 { font-size: 0.9rem; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); }
+        .create-btn { width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+        .create-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(102,126,234,0.3); }
+        @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .sidebar, .right-panel { display: none; } }
+        .message-content pre { background: var(--bg-dark); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 10px 0; font-size: 0.85rem; }
+        .message-content code { background: var(--bg-dark); padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.85rem; }
+        .message-content pre code { background: transparent; padding: 0; }
+        .loading { display: flex; align-items: center; gap: 10px; color: var(--text-dim); padding: 10px; }
+        .loading-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🤖 Multi-Agent 协作平台</h1>
+        <div class="status-badge">
+            <span class="status-dot"></span>
+            <span id="connection-status">已连接</span>
+        </div>
+    </header>
+
+    <main class="main">
+        <aside class="sidebar">
+            <h2>🤖 Agents</h2>
+            <div id="agents-list"></div>
+        </aside>
+
+        <section class="chat-area">
+            <div class="chat-header">
+                <h3 id="chat-title">💬 与 Agent 协作</h3>
+                <button class="clear-btn" onclick="clearChat()">清空对话</button>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message agent">
+                    <div class="message-sender">🤖 系统</div>
+                    <div class="message-content">欢迎使用 Multi-Agent 协作平台！👋
+
+选择一个 Agent 开始对话，或者直接发送任务给所有 Agent。
+
+左侧可以看到所有可用的 Agent，它们会协作完成你的任务。</div>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <textarea class="chat-input" id="chat-input" placeholder="输入你的任务或问题..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">发送</button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="right-panel">
+            <div class="panel-tabs">
+                <div class="panel-tab active" onclick="switchTab('tasks')">📋 任务</div>
+                <div class="panel-tab" onclick="switchTab('status')">📊 状态</div>
+            </div>
+            
+            <div class="panel-content" id="panel-tasks">
+                <div class="create-task">
+                    <h4>➕ 创建新任务</h4>
+                    <div class="form-group">
+                        <label>任务名称</label>
+                        <input type="text" id="task-name" placeholder="例如：实现用户登录功能">
+                    </div>
+                    <div class="form-group">
+                        <label>指定 Agent</label>
+                        <select id="task-agent">
+                            <option value="">所有 Agent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>任务描述</label>
+                        <textarea id="task-desc" rows="2" placeholder="详细描述任务需求..."></textarea>
+                    </div>
+                    <button class="create-btn" onclick="createTask()">🚀 创建任务</button>
+                </div>
+                
+                <h2 style="font-size: 0.9rem; margin-bottom: 10px;">最近任务</h2>
+                <div id="tasks-list"></div>
+            </div>
+
+            <div class="panel-content" id="panel-status" style="display: none;">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">总任务</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-pending">0</div>
+                        <div class="stat-label">等待中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-running">0</div>
+                        <div class="stat-label">进行中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-completed">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                </div>
+                <h2 style="font-size: 0.9rem; margin-bottom: 10px;">共享上下文</h2>
+                <div id="context-display" style="font-size: 0.8rem; color: var(--text-dim);"></div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        let selectedAgent = null;
+        let agents = [];
+        let ws = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadAgents();
+            await loadTasks();
+            connectWebSocket();
+            setInterval(loadTasks, 5000);
+            setInterval(updateStatus, 3000);
+        });
+
+        async function loadAgents() {
+            try {
+                const res = await fetch('/api/agents');
+                agents = await res.json();
+                const list = document.getElementById('agents-list');
+                list.innerHTML = agents.map(agent => `
+                    <div class="agent-card ${selectedAgent === agent.id ? 'active' : ''}" onclick="selectAgent('${agent.id}')">
+                        <div class="agent-header">
+                            <span class="agent-icon">${agent.icon}</span>
+                            <span class="agent-name">${agent.name}</span>
+                        </div>
+                        <span class="agent-role">${agent.role}</span>
+                        <p class="agent-desc">${agent.description}</p>
+                        <div class="agent-status">
+                            <span class="dot ${agent.state?.status || 'idle'}"></span>
+                            <span>${agent.state?.status === 'working' ? '工作中...' : '空闲'}</span>
+                        </div>
+                    </div>
+                `).join('');
+                const select = document.getElementById('task-agent');
+                select.innerHTML = '<option value="">所有 Agent</option>' + agents.map(a => `<option value="${a.id}">${a.icon} ${a.name}</option>`).join('');
+            } catch (e) { console.error('Failed to load agents:', e); }
+        }
+
+        function selectAgent(agentId) {
+            selectedAgent = selectedAgent === agentId ? null : agentId;
+            const title = selectedAgent ? `💬 与 ${agents.find(a => a.id === selectedAgent)?.name} 对话` : '💬 与 Agent 协作';
+            document.getElementById('chat-title').textContent = title;
+            loadAgents();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            addMessage('user', message);
+            input.value = '';
+            input.style.height = 'auto';
+            const loadingId = addLoading();
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, agent_id: selectedAgent })
+                });
+                const data = await res.json();
+                removeLoading(loadingId);
+                if (typeof data.response === 'object') {
+                    for (const [agentId, response] of Object.entries(data.response)) {
+                        const agent = agents.find(a => a.id === agentId);
+                        addMessage('agent', response, `${agent?.icon || '🤖'} ${agent?.name || agentId}`);
+                    }
+                } else {
+                    addMessage('agent', data.response, '🤖 Agent');
+                }
+            } catch (e) { removeLoading(loadingId); addMessage('agent', '❌ 请求失败: ' + e.message); }
+        }
+
+        function addMessage(type, content, sender = '') {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            content = content.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+            div.innerHTML = `${sender ? `<div class="message-sender">${sender}</div>` : ''}<div class="message-content">${content}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addLoading() {
+            const container = document.getElementById('chat-messages');
+            const id = 'loading-' + Date.now();
+            container.innerHTML += `<div class="message agent" id="${id}"><div class="message-sender">🤖 Agent</div><div class="message-content"><div class="loading"><div class="loading-spinner"></div>思考中...</div></div></div>`;
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function removeLoading(id) { const el = document.getElementById(id); if (el) el.remove(); }
+        function handleKeyDown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        function clearChat() { document.getElementById('chat-messages').innerHTML = `<div class="message agent"><div class="message-sender">🤖 系统</div><div class="message-content">对话已清空 ✨</div></div>`; }
+
+        async function loadTasks() {
+            try {
+                const res = await fetch('/api/tasks');
+                const tasks = await res.json();
+                const list = document.getElementById('tasks-list');
+                list.innerHTML = tasks.slice(-5).reverse().map(task => `
+                    <div class="task-item ${task.status}">
+                        <div class="task-name">${task.name}</div>
+                        <div class="task-meta"><span>${task.assigned_agent || '所有 Agent'}</span><span class="task-status ${task.status}">${getStatusText(task.status)}</span></div>
+                    </div>
+                `).join('') || '<p style="color: var(--text-dim); font-size: 0.8rem;">暂无任务</p>';
+            } catch (e) { console.error('Failed to load tasks:', e); }
+        }
+
+        function getStatusText(status) { return { pending: '等待中', running: '进行中', completed: '已完成', failed: '失败' }[status] || status; }
+
+        async function createTask() {
+            const name = document.getElementById('task-name').value.trim();
+            const desc = document.getElementById('task-desc').value.trim();
+            const agent = document.getElementById('task-agent').value;
+            if (!name || !desc) { alert('请填写任务名称和描述'); return; }
+            try {
+                await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description: desc, assigned_agent: agent || null })
+                });
+                document.getElementById('task-name').value = '';
+                document.getElementById('task-desc').value = '';
+                await loadTasks();
+                addMessage('agent', `✅ 任务 "${name}" 已创建并开始执行！`);
+            } catch (e) { alert('创建任务失败: ' + e.message); }
+        }
+
+        async function updateStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const status = await res.json();
+                document.getElementById('stat-total').textContent = status.total_tasks || 0;
+                document.getElementById('stat-pending').textContent = status.pending_tasks || 0;
+                document.getElementById('stat-running').textContent = status.running_tasks || 0;
+                document.getElementById('stat-completed').textContent = status.completed_tasks || 0;
+                const ctx = status.memory?.context || {};
+                const ctxDisplay = document.getElementById('context-display');
+                ctxDisplay.innerHTML = Object.keys(ctx).length > 0 ? Object.entries(ctx).map(([k, v]) => `<div><strong>${k}:</strong> ${JSON.stringify(v)}</div>`).join('') : '<p>暂无共享上下文</p>';
+            } catch (e) { console.error('Failed to update status:', e); }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('panel-tasks').style.display = tab === 'tasks' ? 'block' : 'none';
+            document.getElementById('panel-status').style.display = tab === 'status' ? 'block' : 'none';
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            ws.onopen = () => { document.getElementById('connection-status').textContent = '已连接'; };
+            ws.onclose = () => { document.getElementById('connection-status').textContent = '断开'; setTimeout(connectWebSocket, 3000); };
+            ws.onmessage = (event) => { try { const data = JSON.parse(event.data); if (data.type === 'task_complete') { loadTasks(); addMessage('agent', `📋 任务完成！`); } } catch (e) {} };
+        }
+    </script>
+</body>
+</html>

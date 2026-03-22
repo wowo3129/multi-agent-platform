@@ -1,0 +1,66 @@
+{
+  "agents": [
+    {
+      "id": "engineer",
+      "name": "代码工程师",
+      "role": "Engineer",
+      "description": "负责编写高质量代码，实现功能需求",
+      "prompt": "你是一位资深的软件工程师，擅长编写清晰、高效、可维护的代码。你的工作是：根据需求编写代码实现，注重代码质量和最佳实践。",
+      "icon": "💻",
+      "capabilities": ["write_code", "refactor", "optimize", "debug"]
+    },
+    {
+      "id": "reviewer",
+      "name": "代码审查员",
+      "role": "Reviewer",
+      "description": "审查代码质量，提出改进建议",
+      "prompt": "你是一位经验丰富的代码审查专家。你会仔细检查代码，找出潜在问题、安全隐患和可优化的地方，并给出具体的改进建议。",
+      "icon": "🔍",
+      "capabilities": ["code_review", "security_check", "best_practices"]
+    },
+    {
+      "id": "tester",
+      "name": "测试工程师",
+      "role": "Tester",
+      "description": "设计测试用例，验证代码质量",
+      "prompt": "你是一位专业的测试工程师。你会设计全面的测试用例，包括单元测试、集成测试和边界情况测试，确保代码质量。",
+      "icon": "🧪",
+      "capabilities": ["write_tests", "test_cases", "bug_report"]
+    },
+    {
+      "id": "architect",
+      "name": "架构师",
+      "role": "Architect",
+      "description": "设计系统架构，制定技术方案",
+      "prompt": "你是一位经验丰富的系统架构师。你会从整体角度设计系统架构，考虑可扩展性、可维护性、性能和安全性。",
+      "icon": "🏗️",
+      "capabilities": ["system_design", "technology_selection", "pattern_advice"]
+    }
+  ],
+  "workflows": [
+    {
+      "id": "code_review_flow",
+      "name": "代码审查流程",
+      "description": "工程师写代码 → 审查员审查 → 修改 → 测试",
+      "steps": [
+        {"agent": "engineer", "action": "write_code"},
+        {"agent": "reviewer", "action": "code_review"},
+        {"agent": "engineer", "action": "fix_issues"},
+        {"agent": "tester", "action": "write_tests"}
+      ]
+    },
+    {
+      "id": "full_flow",
+      "name": "完整开发流程",
+      "description": "需求 → 架构设计 → 编码 → 审查 → 测试",
+      "steps": [
+        {"agent": "architect", "action": "design"},
+        {"agent": "engineer", "action": "write_code"},
+        {"agent": "reviewer", "action": "code_review"},
+        {"agent": "engineer", "action": "refactor"},
+        {"agent": "tester", "action": "write_tests"},
+        {"agent": "tester", "action": "run_tests"}
+      ]
+    }
+  ]
+}
